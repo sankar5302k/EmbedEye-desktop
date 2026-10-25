@@ -1,0 +1,26 @@
+# Virtual environment
+venv/
+.venv/
+
+# Local models directory (HARD REQUIREMENT: models live here and not git committed)
+models/
+
+# Local vector database
+data/
+
+# Environment variables
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# IDE / OS
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
