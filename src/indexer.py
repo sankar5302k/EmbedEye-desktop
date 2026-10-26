@@ -869,9 +869,9 @@ def main() -> None:
         except Exception as e:
             if "already accessed by another instance" in str(e).lower() or "permission denied" in str(e).lower():
                 print("\n" + "=" * 60)
-                print("[NOTE] Local database is currently open by a running app.py instance.")
-                print("To clear the database while app.py is running, click the 'Clear Database'")
-                print("button in the Gradio web UI under the Indexing tab, or stop app.py first.")
+                print("[NOTE] Local database is currently open by another EmbedEye process.")
+                print("Only one process may access the local Qdrant database at a time.")
+                print("Please close any active desktop app or CLI process before running this command.")
                 print("=" * 60)
             else:
                 raise

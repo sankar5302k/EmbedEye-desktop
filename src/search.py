@@ -87,6 +87,7 @@ class SearchEngine:
         query: str,
         use_rerank: bool = True,
         use_smart_date: bool = False,
+        top_k: int = 4,
     ) -> Dict[str, Any]:
         """Execute visual search with optional OCR keyword boost and neural cross-encoder reranking."""
         clean_query = query.strip()
@@ -273,23 +274,25 @@ class SearchEngine:
                         scored_candidates.sort(key=lambda x: x["score"], reverse=True)
                         candidates = scored_candidates
 
-                        top4 = candidates[:4]
+                        top_subset = candidates[:top_k]
 
-                        # Rule: Always keep CLIP rank #1 in the final top 4 even if the reranker drops it
-                        if clip_rank_1 is not None:
-                            top4_ids = {c["id"] for c in top4}
-                            if clip_rank_1["id"] not in top4_ids:
-                                # Replace the 4th item with CLIP rank #1
-                                top4 = top4[:3] + [clip_rank_1]
+                        # Rule: Always keep CLIP rank #1 in the final top results even if the reranker drops it
+                        if clip_rank_1 is not None and top_k > 0:
+                            top_ids = {c["id"] for c in top_subset}
+                            if clip_rank_1["id"] not in top_ids:
+                                if len(top_subset) >= top_k:
+                                    top_subset = top_subset[: top_k - 1] + [clip_rank_1]
+                                else:
+                                    top_subset.append(clip_rank_1)
 
                         # Reassign 1-based ranks
-                        for r, c in enumerate(top4, 1):
+                        for r, c in enumerate(top_subset, 1):
                             c["rank"] = r
 
                         for r, c in enumerate(candidates, 1):
                             c["rank"] = r
 
-                        final_top4 = top4
+                        final_top4 = top_subset
                 except Exception as e:
                     logger.warning(
                         f"Local neural reranking failed ({e}). Falling back to visual CLIP ordering."
@@ -297,7 +300,7 @@ class SearchEngine:
                     final_top4 = []
 
             if not final_top4:
-                final_top4 = candidates[:4]
+                final_top4 = candidates[:top_k]
                 for r, c in enumerate(final_top4, 1):
                     c["rank"] = r
 

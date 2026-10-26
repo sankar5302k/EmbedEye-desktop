@@ -1,0 +1,699 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:EmbedEye.Gui.ViewModels"
+        xmlns:views="using:EmbedEye.Gui.Views"
+        xmlns:models="using:EmbedEye.Gui.Models"
+        x:Class="EmbedEye.Gui.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="EmbedEye"
+        Width="880" Height="740"
+        MinWidth="800" MinHeight="620"
+        Background="#121316"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid>
+        <!-- SCREEN 1: SPLASH VIEW -->
+        <views:SplashView IsVisible="{Binding IsSplashVisible}" />
+
+        <!-- SCREEN 2: MAIN DASHBOARD VIEW -->
+        <Grid IsVisible="{Binding !IsSplashVisible}" RowDefinitions="Auto,Auto,*" Margin="20">
+
+            <!-- TOP HEADER (CLEAN & MINIMALIST) -->
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,14">
+                <!-- App Title & Icon -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Path Data="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+                          Fill="{DynamicResource AccentLightBrush}"
+                          Width="22" Height="22"
+                          Stretch="Uniform" />
+                    <TextBlock Text="EmbedEye"
+                               FontSize="17"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Settings Gear Icon & Flyout -->
+                <Button Grid.Column="2"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="8"
+                        Cursor="Hand"
+                        ToolTip.Tip="Settings">
+                    <Path Data="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+                          Fill="{DynamicResource TextSecondaryBrush}"
+                          Width="18" Height="18"
+                          Stretch="Uniform" />
+                    <Button.Flyout>
+                        <Flyout Placement="BottomEdgeAlignedRight">
+                            <Border Background="#1C1F26" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Width="260">
+                                <StackPanel Spacing="14">
+                                    <TextBlock Text="Settings" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                                    <ToggleSwitch Content="Reduce animations"
+                                                  IsChecked="{Binding ReduceAnimations}"
+                                                  FontSize="12" />
+
+                                    <Button Content="Open Logs Folder"
+                                            Command="{Binding OpenLogsFolderCommand}"
+                                            HorizontalAlignment="Stretch"
+                                            Classes="ActionButton" />
+
+                                    <Button Content="{Binding IsContextMenuRegistered, Converter={x:Null}, FallbackValue='Register Explorer Menu'}"
+                                            Command="{Binding ToggleContextMenuCommand}"
+                                            HorizontalAlignment="Stretch"
+                                            Classes="ActionButton" />
+                                </StackPanel>
+                            </Border>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+            </Grid>
+
+            <!-- SEGMENTED NAVIGATION TABS -->
+            <Border Grid.Row="1" Background="#181A20" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="4" Margin="0,0,0,16">
+                <Grid ColumnDefinitions="*,*">
+                    <!-- Tab 0: Search Photos & Documents -->
+                    <Button Grid.Column="0"
+                            Command="{Binding ShowSearchTabCommand}"
+                            Classes="TabButton"
+                            Classes.Active="{Binding IsSearchTabSelected}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Path Data="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                                  Fill="{DynamicResource AccentLightBrush}"
+                                  Width="15" Height="15"
+                                  Stretch="Uniform"
+                                  VerticalAlignment="Center" />
+                            <TextBlock Text="Search Photos &amp; Documents" FontSize="13" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Tab 1: Indexing & Management -->
+                    <Button Grid.Column="1"
+                            Command="{Binding ShowIndexTabCommand}"
+                            Classes="TabButton"
+                            Classes.Active="{Binding IsIndexTabSelected}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Path Data="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"
+                                  Fill="{DynamicResource TextSecondaryBrush}"
+                                  Width="15" Height="15"
+                                  Stretch="Uniform"
+                                  VerticalAlignment="Center" />
+                            <TextBlock Text="Indexing &amp; Management" FontSize="13" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- ============================================================= -->
+            <!-- VIEW 1: SEARCH VIEW (PRIMARY / CORE FUNCTIONALITY)            -->
+            <!-- ============================================================= -->
+            <ScrollViewer Grid.Row="2"
+                          IsVisible="{Binding IsSearchTabSelected}"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="16">
+
+                    <!-- SEARCH INPUT CARD -->
+                    <Border Classes="Card">
+                        <StackPanel Spacing="12">
+                            <!-- Header Row: Title & Search Mode Switcher -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Search Query" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16">
+                                    <RadioButton Content="Photos (Visual)"
+                                                 IsChecked="{Binding IsVisualMode}"
+                                                 GroupName="SearchModeGroup"
+                                                 FontSize="12" />
+                                    <RadioButton Content="Documents (OCR)"
+                                                 IsChecked="{Binding IsOcrMode}"
+                                                 GroupName="SearchModeGroup"
+                                                 FontSize="12" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Search Input Box & Action Search Button -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Name="SearchTextBox"
+                                         Grid.Column="0"
+                                         Text="{Binding SearchQuery, Mode=TwoWay}"
+                                         Watermark="Search photos by description, objects, or extracted text..."
+                                         CornerRadius="6,0,0,6"
+                                         Height="40"
+                                         VerticalContentAlignment="Center"
+                                         FontSize="13"
+                                         KeyDown="OnSearchTextBoxKeyDown" />
+
+                                <Button Name="SearchButton"
+                                        Grid.Column="1"
+                                        Command="{Binding ExecuteSearchCommand}"
+                                        IsEnabled="{Binding !IsSearching}"
+                                        Classes="ActionButton PrimaryAction"
+                                        CornerRadius="0,6,6,0"
+                                        Height="40"
+                                        Padding="20,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Path Data="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                                              Fill="#FFFFFF"
+                                              Width="15" Height="15"
+                                              Stretch="Uniform"
+                                              VerticalAlignment="Center" />
+                                        <TextBlock Text="Search" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+
+                            <!-- Quick Suggestion Chips -->
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Quick searches:" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                <Button Content="Recent Photos" Command="{Binding SetQuickSearchCommand}" CommandParameter="recent" Classes="ActionButton" Padding="8,4" FontSize="11" />
+                                <Button Content="Invoices &amp; Receipts" Command="{Binding SetQuickSearchCommand}" CommandParameter="invoice receipt" Classes="ActionButton" Padding="8,4" FontSize="11" />
+                                <Button Content="Landscapes" Command="{Binding SetQuickSearchCommand}" CommandParameter="landscape nature scenic" Classes="ActionButton" Padding="8,4" FontSize="11" />
+                                <Button Content="Documents" Command="{Binding SetQuickSearchCommand}" CommandParameter="official document letter" Classes="ActionButton" Padding="8,4" FontSize="11" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- SEARCH STATUS BADGE -->
+                    <Grid ColumnDefinitions="Auto,*" Margin="4,0" IsVisible="{Binding HasSearched}">
+                        <Border Grid.Column="0"
+                                Background="#1A2433"
+                                BorderBrush="{DynamicResource AccentBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="8,3">
+                            <TextBlock Text="{Binding SearchBadge}" FontSize="11" Foreground="{DynamicResource AccentLightBrush}" FontWeight="SemiBold" />
+                        </Border>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding SearchStatusText}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="12,0,0,0" />
+                    </Grid>
+
+                    <!-- SEARCHING PROGRESS BAR -->
+                    <Border Classes="Card" IsVisible="{Binding IsSearching}">
+                        <StackPanel Spacing="8">
+                            <ProgressBar IsIndeterminate="True"
+                                         Height="4"
+                                         Foreground="{DynamicResource AccentLightBrush}"
+                                         Background="#20242E"
+                                         CornerRadius="2" />
+                            <TextBlock Text="Searching database and reranking results..."
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- INITIAL READY STATE (WHEN NOT SEARCHED YET) -->
+                    <Border Classes="Card" IsVisible="{Binding !HasSearched}">
+                        <StackPanel Spacing="10" HorizontalAlignment="Center" Margin="0,20">
+                            <Path Data="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                                  Fill="{DynamicResource TextMutedBrush}"
+                                  Width="36" Height="36"
+                                  Stretch="Uniform"
+                                  HorizontalAlignment="Center" />
+                            <TextBlock Text="Search Your Photo &amp; Document Library"
+                                       FontWeight="SemiBold"
+                                       FontSize="14"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="Type your search query above and click Search to retrieve the top 3 best matching items."
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center" />
+
+                            <Button Content="Open Indexing &amp; Management"
+                                    Command="{Binding ShowIndexTabCommand}"
+                                    Classes="ActionButton"
+                                    Margin="0,6,0,0"
+                                    Padding="16,8"
+                                    FontSize="12"
+                                    HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- NO RESULTS STATE -->
+                    <Border Classes="Card" IsVisible="{Binding NoResultsFound}">
+                        <StackPanel Spacing="10" HorizontalAlignment="Center" Margin="0,20">
+                            <TextBlock Text="No Matching Items Found"
+                                       FontWeight="SemiBold"
+                                       FontSize="14"
+                                       Foreground="{DynamicResource WarningBrush}"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="Try adjusting your query words or index more folders from the Indexing tab."
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center" />
+
+                            <Button Content="Index Folders in Management Tab"
+                                    Command="{Binding ShowIndexTabCommand}"
+                                    Classes="ActionButton"
+                                    Margin="0,6,0,0"
+                                    Padding="16,8"
+                                    FontSize="12"
+                                    HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- TOP 3 SEARCH RESULTS CARDS -->
+                    <ItemsControl ItemsSource="{Binding SearchResults}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="models:SearchResultItemModel">
+                                <Border Classes="Card" Margin="0,0,0,12" Padding="14">
+                                    <Grid ColumnDefinitions="160,*">
+                                        <!-- COLUMN 0: THUMBNAIL PREVIEW -->
+                                        <Border Grid.Column="0"
+                                                Background="#14161C"
+                                                BorderBrush="{DynamicResource CardBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Height="140" Width="160"
+                                                ClipToBounds="True">
+                                            <Grid>
+                                                <!-- Placeholder icon when thumbnail loading -->
+                                                <Path Data="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"
+                                                      Fill="#2A2E39"
+                                                      Width="32" Height="32"
+                                                      Stretch="Uniform"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      IsVisible="{Binding !HasThumbnail}" />
+
+                                                <!-- Loaded Image Bitmap -->
+                                                <Image Source="{Binding Thumbnail}"
+                                                       Stretch="UniformToFill"
+                                                       IsVisible="{Binding HasThumbnail}" />
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- COLUMN 1: METADATA & ACTIONS -->
+                                        <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="16,0,0,0">
+                                            <!-- Row 0: Badges (Rank, Match Score, Date) -->
+                                            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,6">
+                                                <!-- Rank Badge -->
+                                                <Border Background="#1C2D42" BorderBrush="{DynamicResource AccentLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                    <TextBlock Text="{Binding RankBadge}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentLightBrush}" />
+                                                </Border>
+
+                                                <!-- Score Badge -->
+                                                <Border Background="#163320" BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                    <TextBlock Text="{Binding ScoreText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" />
+                                                </Border>
+
+                                                <!-- Date Badge -->
+                                                <Border Background="#20242E" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" IsVisible="{Binding HasDate}">
+                                                    <TextBlock Text="{Binding Date}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- Row 1: Filename -->
+                                            <TextBlock Grid.Row="1"
+                                                       Text="{Binding Filename}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="14"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Path}"
+                                                       Margin="0,0,0,6" />
+
+                                            <!-- Row 2: Caption / OCR snippet -->
+                                            <StackPanel Grid.Row="2" Spacing="4" Margin="0,0,0,8">
+                                                <TextBlock Text="{Binding Caption}"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           TextWrapping="Wrap"
+                                                           MaxLines="2"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           IsVisible="{Binding HasCaption}" />
+
+                                                <TextBlock Text="{Binding OcrText}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           TextWrapping="Wrap"
+                                                           MaxLines="2"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           IsVisible="{Binding HasOcrText}" />
+                                            </StackPanel>
+
+                                            <!-- Row 3: Full Path -->
+                                            <TextBlock Grid.Row="3"
+                                                       Text="{Binding Path}"
+                                                       FontSize="10"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Margin="0,0,0,10" />
+
+                                            <!-- Row 4: Action Buttons -->
+                                            <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="10">
+                                                <Button Content="Open Image"
+                                                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenFileCommand}"
+                                                        CommandParameter="{Binding Path}"
+                                                        Classes="ActionButton"
+                                                        Padding="12,6"
+                                                        FontSize="12" />
+
+                                                <Button Content="Show in Folder"
+                                                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RevealFileCommand}"
+                                                        CommandParameter="{Binding Path}"
+                                                        Classes="ActionButton"
+                                                        Padding="12,6"
+                                                        FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ============================================================= -->
+            <!-- VIEW 2: INDEXING & LIBRARY MANAGEMENT VIEW                    -->
+            <!-- ============================================================= -->
+            <ScrollViewer Grid.Row="2"
+                          IsVisible="{Binding IsIndexTabSelected}"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="16">
+
+                    <!-- BACKEND CRASH ERROR BANNER (IF CRASHED) -->
+                    <Border Classes="Card"
+                            IsVisible="{Binding BackendCrashed}"
+                            Background="#331818"
+                            BorderBrush="{DynamicResource DangerBrush}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="Backend Engine Offline" FontWeight="Bold" Foreground="{DynamicResource DangerBrush}" />
+                                <TextBlock Text="{Binding BackendCrashMessage}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Content="Restart Engine"
+                                    Command="{Binding RestartEngineCommand}"
+                                    Classes="ActionButton" />
+                        </Grid>
+                    </Border>
+
+                    <!-- CARD 1: FOLDER INPUT & DISCOVERY -->
+                    <Border Name="FolderCard" Classes="Card" DragDrop.AllowDrop="True">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Target Folder" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding FolderValidationMessage}"
+                                           FontSize="11"
+                                           Foreground="{Binding IsFolderValid, Converter={x:Null}, FallbackValue={DynamicResource SuccessBrush}}" />
+                            </Grid>
+
+                            <!-- Path Box & Browse Button -->
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                                <TextBox Name="FolderPathTextBox"
+                                         Grid.Column="0"
+                                         Text="{Binding FolderInput, Mode=TwoWay}"
+                                         Watermark="Paste folder path or drag &amp; drop directory here..."
+                                         CornerRadius="6,0,0,6"
+                                         Height="38"
+                                         VerticalContentAlignment="Center"
+                                         FontSize="13" />
+
+                                <Button Name="BrowseButton"
+                                        Grid.Column="1"
+                                        Content="Browse..."
+                                        Click="OnBrowseFolderClicked"
+                                        CornerRadius="0,6,6,0"
+                                        Height="38"
+                                        Classes="ActionButton" />
+                            </Grid>
+
+                            <!-- Live Folder Summary Counters -->
+                            <Border Background="{DynamicResource SubPanelBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,10">
+                                <Grid ColumnDefinitions="*,*,*">
+                                    <!-- Files Found -->
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="Files Found" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding ImagesFoundCount}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            <TextBlock Text="images /" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <TextBlock Text="{Binding DocsFoundCount}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            <TextBlock Text="docs" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Staged Records -->
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Text="Staged (Ready to Store)" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding StagedOcrCount}" FontWeight="Bold" Foreground="{DynamicResource AccentLightBrush}" />
+                                            <TextBlock Text="OCR /" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <TextBlock Text="{Binding StagedCaptionCount}" FontWeight="Bold" Foreground="{DynamicResource AccentLightBrush}" />
+                                            <TextBlock Text="caption" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Stored Records -->
+                                    <StackPanel Grid.Column="2" Spacing="2">
+                                        <TextBlock Text="Stored in Database" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding StoredPhotosCount}" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}" />
+                                            <TextBlock Text="photos /" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <TextBlock Text="{Binding StoredDocsCount}" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}" />
+                                            <TextBlock Text="chunks" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- CARD 2: PIPELINE ACTIONS (2x2 GRID) -->
+                    <Border Classes="Card">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Pipeline Actions" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+
+                            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,*" Margin="0,4,0,0">
+                                <!-- ACTION 1: OCR ONLY -->
+                                <Button Grid.Row="0" Grid.Column="0"
+                                        Classes="ActionButton"
+                                        Margin="0,0,6,6"
+                                        Height="66"
+                                        Command="{Binding ExecuteOcrCommand}"
+                                        IsEnabled="{Binding IsFolderValid}">
+                                    <StackPanel HorizontalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="1. OCR (Text Only)" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Extract text to staging (CPU, 0 VRAM)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- ACTION 2: OCR + CAPTION -->
+                                <Button Grid.Row="0" Grid.Column="1"
+                                        Classes="ActionButton"
+                                        Margin="6,0,0,6"
+                                        Height="66"
+                                        Command="{Binding ExecuteOcrCaptionCommand}"
+                                        IsEnabled="{Binding IsFolderValid}">
+                                    <StackPanel HorizontalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="2. OCR + Caption" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Florence-2 Caption + OCR (GPU Isolated)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- ACTION 3: STORE IN DB -->
+                                <Button Grid.Row="1" Grid.Column="0"
+                                        Classes="ActionButton PrimaryAction"
+                                        Margin="0,6,6,0"
+                                        Height="66"
+                                        Command="{Binding ExecuteStoreCommand}"
+                                        IsEnabled="{Binding IsFolderValid}">
+                                    <StackPanel HorizontalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="3. Store in Database" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Embed and commit staged entries to database" FontSize="11" Foreground="#D0FFFFFF" HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- ACTION 4: DELETE FROM DB -->
+                                <Button Grid.Row="1" Grid.Column="1"
+                                        Classes="ActionButton DestructiveAction"
+                                        Margin="6,6,0,0"
+                                        Height="66"
+                                        Command="{Binding PromptDeleteModalCommand}"
+                                        IsEnabled="{Binding IsFolderValid}">
+                                    <StackPanel HorizontalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="4. Delete from Database" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Remove folder index (safe: keeps original files)" FontSize="11" Foreground="#FFA0B0" HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- CARD 3: PROGRESS & STAGE CARD -->
+                    <Border Classes="Card" IsVisible="{Binding IsProgressVisible}">
+                        <StackPanel Spacing="10">
+                            <!-- Stage Stepper and Cancel Button -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                    <Border Background="#1C2D42" BorderBrush="{DynamicResource AccentLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8,2">
+                                        <TextBlock Text="{Binding StageTitle}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentLightBrush}" />
+                                    </Border>
+                                    <TextBlock Text="{Binding CurrentFileText}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <Button Grid.Column="1"
+                                        Content="Cancel Job"
+                                        Command="{Binding CancelCurrentJobCommand}"
+                                        IsVisible="{Binding IsJobRunning}"
+                                        Classes="ActionButton DestructiveAction"
+                                        Padding="10,4"
+                                        FontSize="11" />
+                            </Grid>
+
+                            <!-- Progress Bar -->
+                            <ProgressBar Value="{Binding ProgressPercent}"
+                                         IsIndeterminate="{Binding IsIndeterminate}"
+                                         Minimum="0" Maximum="100"
+                                         Height="6"
+                                         Foreground="{DynamicResource AccentBrush}"
+                                         Background="#20242E"
+                                         CornerRadius="3" />
+
+                            <!-- Rate & ETA Subtitle -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding RateText}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Grid.Column="1" Text="{Binding EtaText}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- CARD 4: HARDWARE STATUS & RESIDENT MODELS -->
+                    <Border Classes="Card">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="System Hardware" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <TextBlock Grid.Column="1" Text="{Binding DeviceName}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                            </Grid>
+
+                            <!-- VRAM Gauge -->
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <TextBlock Grid.Column="0" Text="GPU VRAM" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Width="70" />
+
+                                <ProgressBar Grid.Column="1"
+                                             Value="{Binding VramPercent}"
+                                             Minimum="0" Maximum="100"
+                                             Height="8"
+                                             Foreground="{DynamicResource AccentBrush}"
+                                             Background="#20242E"
+                                             CornerRadius="4"
+                                             Margin="10,0" />
+
+                                <TextBlock Grid.Column="2" Text="{Binding VramText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <!-- Resident Models Tags -->
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Resident GPU Models:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                <ItemsControl ItemsSource="{Binding ResidentModels}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="6" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Classes="Chip">
+                                                <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource AccentLightBrush}" FontWeight="SemiBold" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- CARD 5: LIVE LOGS CONSOLE -->
+                    <Border Classes="Card">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Activity Logs" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                <Button Grid.Column="1"
+                                        Content="Copy Logs"
+                                        Click="OnCopyLogsClicked"
+                                        Classes="ActionButton"
+                                        Padding="10,4"
+                                        FontSize="11" />
+                            </Grid>
+
+                            <!-- Log Items List -->
+                            <Border Background="{DynamicResource SubPanelBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8" Height="140">
+                                <ListBox ItemsSource="{Binding Logs}"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="models:LogEntryModel">
+                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,1">
+                                                <TextBlock Text="{Binding Timestamp}" Foreground="{DynamicResource TextMutedBrush}" FontFamily="Consolas, monospace" FontSize="11" />
+                                                <TextBlock Text="{Binding Level}" Foreground="{DynamicResource AccentLightBrush}" FontWeight="Bold" FontFamily="Consolas, monospace" FontSize="11" />
+                                                <TextBlock Text="{Binding Message}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- DELETE CONFIRMATION MODAL OVERLAY -->
+        <Grid Background="#B0000000"
+              IsVisible="{Binding IsDeleteModalOpen}">
+            <Border Classes="Card"
+                    Width="460"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Background="#1E1C20"
+                    BorderBrush="{DynamicResource DangerBrush}"
+                    BorderThickness="1.5">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Confirm Deletion from Database" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource DangerBrush}" />
+
+                    <TextBlock Text="{Binding DeleteModalText}"
+                               TextWrapping="Wrap"
+                               FontSize="13"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                    <Border Background="#2B1818" BorderBrush="#5C2424" BorderThickness="1" CornerRadius="4" Padding="10,6">
+                        <TextBlock Text="Original files on your disk will not be modified or deleted."
+                                   FontSize="11"
+                                   Foreground="#FCA5A5" />
+                    </Border>
+
+                    <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
+                        <Button Grid.Column="0"
+                                Content="Cancel"
+                                Command="{Binding CancelDeleteModalCommand}"
+                                Classes="ActionButton"
+                                Margin="0,0,8,0" />
+
+                        <Button Grid.Column="1"
+                                Content="Delete from Database"
+                                Command="{Binding ConfirmDeleteCommand}"
+                                Classes="ActionButton DestructiveAction"
+                                Margin="8,0,0,0" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

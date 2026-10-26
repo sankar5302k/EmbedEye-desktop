@@ -105,29 +105,55 @@ The RTX 3050 Laptop GPU provides **4096 MB VRAM**. The architecture ensures that
 ## 🏗️ Architecture & Project Structure
 
 ```
-photo-search/
+embedeye/
   models/                 # ALL model weights stored locally here (git-ignored)
     open_clip/            # OpenCLIP ViT-B-32 weights
     transformers/         # Microsoft Florence-2 weights
     reranker/             # mixedbread-ai/mxbai-rerank-large-v1 cross-encoder weights
+    sentence_transformers/# all-MiniLM-L6-v2 CPU weights
+    tesseract/            # Standalone Tesseract v5.5.3 binaries & tessdata
     torch/                # Torch core cache
     huggingface/          # HuggingFace hub cache
   data/
     qdrant/               # Embedded Qdrant local vector database
-    indexer_cache.db      # SQLite checkpoint database for indexing crash recovery
+    indexer_cache.db      # SQLite checkpoint database for visual indexing
+    ocr_indexer_cache.db  # SQLite checkpoint database for OCR indexing
   scripts/
     download_models.py    # Downloads all models into ./models/ with size breakdown
+    verify_ocr_mode.py    # Automated test suite for OCR indexing and search
+  backend/
+    server.py             # Uvicorn launcher, ready line handshake, ephemeral port/token
+    api.py                # FastAPI routes (health, status, folder summary, jobs, websockets)
+    jobs.py               # Single-job worker runner with cancellation & GPU isolation
+    events.py             # Thread-safe event bus & WebSocket broadcaster
+    security.py           # Bearer token auth, origin protection, path sanitization
+    staging.py            # SQLite staging store (./data/staging.db)
+  gui/
+    EmbedEye.Gui/         # Avalonia 11 desktop app (.NET 8, CommunityToolkit.Mvvm)
+      ViewModels/         # MainWindowViewModel, ViewModelBase
+      Views/              # MainWindow, SplashView (Mica/Acrylic, Fluent design)
+      Services/           # JobObjectService, BackendProcessManager, ApiClient, WebSocketClient
   src/
+    cli.py                # Unified CLI interface (index, search, ocr, clear, status)
     config.py             # Paths, env overrides, hardware detection, settings
     gpu_manager.py        # Strict GPU memory manager & context manager API
     models.py             # Loaders, inference helpers, OCR cleaning, RapidOCR
     indexer.py            # 4-stage staged indexer with crash recovery
     search.py             # OpenCLIP + Reranker search + OCR keyword matching
+    ocr_engine.py         # Multi-engine OCR strategies (Tesseract, RapidOCR, Florence)
+    ocr_indexer.py        # Document chunking, multiprocessing, OCR indexing
+    ocr_search.py         # Hybrid vector/keyword retrieval, RRF, reranking
+    status.py             # Hardware telemetry, live VRAM, and collection counts
+    os_utils.py           # Native desktop file reveal & explorer launcher
+    thumbnails.py         # Image and PDF page preview thumbnail generator
   tests/
     test_gpu_manager.py   # Unit test asserting 50MB VRAM return to baseline
-  app.py                  # Gradio web interface with live VRAM status
+    test_backend.py       # Comprehensive pytest suite for API, security, staging, jobs
+    test_e2e_pipeline.py  # End-to-end integration test of 20-image pipeline
+  publish.ps1             # PowerShell script to produce self-contained win-x64 build
   .env.example            # Environment configuration template
   requirements.txt        # Verified Python package dependencies
+  CODE_STRUCTURE.md       # Architecture & OOP documentation
   README.md               # Documentation and technical guide
 ```
 
@@ -217,52 +243,133 @@ Run the pre-downloader script once to download weights directly into `./models/`
 
 ---
 
-## 💻 Usage
+## 💻 Interfaces & Usage
 
-### 1. Launch the Gradio Web App
+EmbedEye provides two primary interfaces:
+1. **Unified Command-Line Interface (CLI)**: Terminal-first, privacy-respecting search and index management.
+2. **Desktop Application**: Modern Windows native GUI built with Avalonia (.NET 8) backed by EmbedEye's local Python API backend.
+
+> ⚠️ **Database Concurrency Notice**: Embedded local Qdrant allows only **one process** to access `./data/qdrant` at a time. Do not execute CLI index/search commands while the desktop application is running.
+
+---
+
+### 1. Unified Command-Line Interface (`src.cli`)
+
+EmbedEye includes a single command-line interface `python -m src.cli`:
+
+#### A. Visual Photo Indexing & Search
 ```powershell
-.\venv\Scripts\python.exe app.py
+# Index a directory of photos (OpenCLIP 512-d embeddings + Florence-2 captioning):
+.\venv\Scripts\python.exe -m src.cli index "C:\Users\Admin\Pictures"
+
+# Recaption existing index without recomputing CLIP visual vectors:
+.\venv\Scripts\python.exe -m src.cli index "C:\Users\Admin\Pictures" --recaption
+
+# Search photos with semantic queries:
+.\venv\Scripts\python.exe -m src.cli search "red car on sunny beach"
+
+# Search photos with quoted OCR text:
+.\venv\Scripts\python.exe -m src.cli search "bill from 'Reliance'"
+
+# Search with offline date parsing (e.g. 2024):
+.\venv\Scripts\python.exe -m src.cli search "family vacation 2024" --smart-date
 ```
-Open **[http://127.0.0.1:7860](http://127.0.0.1:7860)** in your browser:
-- **Status Bar**: Real-time display showing GPU/CPU active status, live resident models (`[clip, reranker]` or `[None (idle)]`), allocated/reserved VRAM, and indexed photo counts.
-- **Search Tab**: 
-  - Visual queries: `"red car on beach"`, `"sunset over snowy mountains"`.
-  - Keyword / OCR queries with quotes: `"bill from 'Reliance'"`, `"flight 'AI-102'"`.
-  - Results show top 4 matches with generated captions, OCR text, and folder quick-open buttons.
-  - Expandable candidate table displays all 16 candidates with similarity scores.
-- **Indexing Tab**: Index photo directories with live progress tracking, peak VRAM reporting, and optional recaption mode.
 
-### 2. Command-Line Interface (CLI)
-
-#### Index a photo folder:
+#### B. OCR Document Indexing & Hybrid Search
 ```powershell
+# Index a directory of documents, receipts, screenshots, or PDFs:
+.\venv\Scripts\python.exe -m src.cli ocr-index "data/sample_ocr_test" --engine tesseract
+
+# Search OCR documents (hybrid vector + keyword full-text + cross-encoder rerank):
+.\venv\Scripts\python.exe -m src.cli ocr-search "electricity bill"
+
+# Search with exact quoted phrases:
+.\venv\Scripts\python.exe -m src.cli ocr-search '"Oakridge Properties"'
+```
+
+#### C. System Telemetry & Database Management
+```powershell
+# Display real-time GPU VRAM, active models, and collection counts:
+.\venv\Scripts\python.exe -m src.cli status
+
+# Clear databases:
+.\venv\Scripts\python.exe -m src.cli clear --photos   # Clear visual photos collection
+.\venv\Scripts\python.exe -m src.cli clear --ocr      # Clear OCR documents collection
+.\venv\Scripts\python.exe -m src.cli clear --all      # Clear all databases
+```
+
+---
+
+### 2. Standalone Subsystem Modules
+
+You can also run individual subsystem modules directly:
+
+```powershell
+# Visual Photo Indexer & Searcher:
 .\venv\Scripts\python.exe -m src.indexer "C:\Users\Admin\Pictures"
-```
-
-#### Run a search query:
-```powershell
-# Visual query:
 .\venv\Scripts\python.exe -m src.search "red car near beach"
 
-# OCR keyword query with quotes:
-.\venv\Scripts\python.exe -m src.search "bill from 'Reliance'"
+# OCR-Only Indexer & Searcher:
+.\venv\Scripts\python.exe -m src.ocr_indexer "data/sample_ocr_test"
+.\venv\Scripts\python.exe -m src.ocr_search "invoice total"
 
-# Without cross-encoder reranking:
-.\venv\Scripts\python.exe -m src.search "red car" --no-rerank
-```
-
-#### Clear / Reset Database:
-```powershell
-.\venv\Scripts\python.exe -m src.indexer --clear
-```
-Removes all vector records from local Qdrant and resets the intermediate SQLite checkpoint cache. In the Gradio UI, you can also click the **"🗑️ Clear Database"** button under the **Indexing** tab.
-
-#### Run VRAM Management Unit Test:
-```powershell
+# VRAM Management Unit Test:
 .\venv\Scripts\python.exe -m tests.test_gpu_manager
 ```
-Asserts that every model load and unload cycle cleanly returns allocated VRAM to within 50MB of baseline.
 
+---
+
+### 3. Desktop Application (Avalonia GUI + Python API Backend)
+
+EmbedEye features a native Windows desktop GUI built with **Avalonia 11 (.NET 8)** using the Model-View-ViewModel (MVVM) architecture with `CommunityToolkit.Mvvm`. The GUI is backed by a local FastAPI backend running on a dedicated worker thread with strict GPU isolation and real-time WebSocket telemetry.
+
+#### A. Architecture & Lifecycle
+- **Process Ownership**: The Avalonia app launches the Python backend hidden using the venv's `pythonw.exe`. The backend binds exclusively to `127.0.0.1` on an ephemeral port with an ephemeral 32-byte cryptographic Bearer token passed via environment variables.
+- **Job Object Safety**: The backend child process is assigned to a Windows Job Object configured with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. When the GUI closes or terminates unexpectedly, Windows terminates the backend process instantly, ensuring zero orphan processes hold GPU VRAM or the local Qdrant lock.
+- **Single-Instance Mutex & Named Pipe**: A second launch with a folder argument forwards the folder path to the existing window (bringing it to the foreground) and exits immediately.
+- **Exclusive DB Access**: The desktop app backend is the sole owner of `./data/qdrant/`. Do not execute CLI commands while the desktop app is running.
+
+#### B. The 4 Pipeline Actions
+1. **📄 1. OCR (Text Only)**: Extracts text from images and PDF pages using the configured OCR engine (RapidOCR / Tesseract on CPU, 0 MB VRAM) and saves results to `./data/staging.db`. No Qdrant writes occur during this stage. Unchanged files (by path + mtime) are skipped.
+2. **✨ 2. OCR + Caption**: Generates detailed descriptive captions and OCR text using **Florence-2** on GPU with strict memory manager isolation, followed by RapidOCR verification for documents and screenshots. Results are saved to `./data/staging.db`.
+3. **💾 3. Store in DB**: Commits staged data into local Qdrant databases:
+   - OCR-only rows are chunked (~250 words) and embedded into 384-d dense vectors with MiniLM on CPU, then upserted to `docs_ocr`.
+   - Caption rows are encoded into 512-d OpenCLIP vectors on GPU (model loaded, used, and immediately unloaded) and upserted to `photos`.
+4. **🗑️ 4. Delete from DB**: Removes all points matching the folder path (recursively) from both collections (`photos` and `docs_ocr`), plus staging and SQLite cache entries. **Your original image and document files are NEVER deleted.**
+
+#### C. Prerequisites & Development Run
+- **Prerequisites**: .NET 8.0 SDK (installed via `dotnet-install.ps1` or Microsoft installer).
+```powershell
+# Run the desktop app during development:
+$env:DOTNET_ROOT = "C:\Users\Admin\.dotnet"
+$env:PATH = "C:\Users\Admin\.dotnet;" + $env:PATH
+dotnet run --project gui/EmbedEye.Gui
+```
+
+#### D. Publishing Self-Contained Release Build
+Run the automated build script to produce a standalone Windows distribution in `dist/EmbedEye/`:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\publish.ps1
+```
+The resulting executable is `dist\EmbedEye\EmbedEye.Gui.exe` (ready to run with zero .NET runtime dependencies on user machines).
+
+#### E. Windows Explorer Right-Click Context Menu Integration
+You can register EmbedEye directly into the Windows right-click context menu (HKCU registry, requiring no administrator elevation):
+```powershell
+# Register context menu:
+.\dist\EmbedEye\EmbedEye.Gui.exe --register-context-menu
+
+# Unregister context menu:
+.\dist\EmbedEye\EmbedEye.Gui.exe --unregister-context-menu
+```
+*Note for Windows 11*: The menu item ("Open with EmbedEye") appears under **"Show more options"** (or by pressing `Shift + F10`). You can also toggle this from the Settings Gear flyout inside the application.
+
+#### F. Accessibility & Low-Resource Flags
+- **Reduce Animations**: Toggleable via the settings gear flyout, or automatically activated when Windows system animation effects are turned off (`SPI_GETCLIENTAREAANIMATION`).
+- **Software Rendering**: Pass `--software-render` if running inside virtual machines or systems with unsupported display drivers:
+  ```powershell
+  .\dist\EmbedEye\EmbedEye.Gui.exe --software-render
+  ```
 
 ---
 
@@ -308,8 +415,8 @@ The pipeline automatically handles OOM by halving the active batch size and retr
 
 ### Qdrant "already accessed by another instance"
 Local embedded Qdrant uses an exclusive file lock on `./data/qdrant/`.
-- Close any running CLI indexer/searcher before running `app.py`.
-- If `app.py` is running, use the web interface to index rather than running `python -m src.indexer` in parallel.
+- Only one process may use `./data/qdrant` at a time (the desktop app's backend or one CLI command).
+- Do not run a CLI command while the desktop app is open. Always close the desktop application or wait for background indexing tasks to complete before running CLI commands.
 
 ---
 
@@ -401,6 +508,30 @@ Options:
 
 # Query with candidate score inspection
 .\venv\Scripts\python.exe -m src.ocr_search "invoice total" --show-candidates
+```
+
+---
+
+## 🖥️ Windows Desktop GUI (EmbedEye.Gui)
+
+EmbedEye includes a professional, native Windows desktop application built with **.NET 8 and Avalonia 11** using the Fluent theme. The UI is designed to enterprise standards with vector SVG iconography, high contrast readability, and zero emojis.
+
+### Core Features
+- **Instant Photo & Document Search**:
+  - The default primary screen is the **Search Library** view.
+  - Enter any natural language description or keyword to retrieve the **Top 3 best matching items**.
+  - Displays rich result cards with thumbnail image preview, match confidence percentage badge, rank badge, date, caption, OCR text snippet, and quick actions (`Open Image`, `Show in Folder`).
+  - Supports both **Visual Photo Search** (OpenCLIP + Neural Cross-Encoder Reranker) and **Document OCR Search** (Hybrid Vector/Keyword + Reranker).
+- **Indexing & Library Management**:
+  - Dedicated secondary tab for managing folder indexing with real-time file counters, 4 pipeline actions (OCR Text Only, OCR + Caption, Store in Database, Delete from Database), VRAM telemetry gauge, and live execution logs.
+- **Safety & Process Isolation**:
+  - Bound to Windows Job Object (`KILL_ON_JOB_CLOSE`), ensuring backend processes automatically terminate when the desktop GUI exits.
+  - Single-instance mutex with named pipe argument forwarding (e.g. from Windows Explorer right-click context menu).
+
+### Launching the Desktop Application
+```powershell
+# Run the self-contained distribution directly:
+.\dist\EmbedEye\EmbedEye.Gui.exe
 ```
 
 ---

@@ -12,7 +12,7 @@ The platform provides two primary modes of operation:
 1. **Visual Photo Search**:
    - Indexes local photos using a 4-stage pipeline.
    - Extracts 512-dimensional visual vectors using OpenCLIP (`ViT-B-32`).
-   - Generates captions and extracts scene text using Florence-2 (`microsoft/Florence-2-base`).
+   - Generates captions and extracts scene text using Florence-2 (`microsoft/Florence-2-large` or `microsoft/Florence-2-base`).
    - Verifies document text using CPU-based RapidOCR without consuming VRAM.
    - Answers natural language and keyword queries by vector similarity + neural cross-encoder reranking (`mixedbread-ai/mxbai-rerank-large-v1`).
 2. **OCR-Only Document Search**:
@@ -28,11 +28,12 @@ The platform provides two primary modes of operation:
 
 ```mermaid
 graph TD
-    subgraph UI_Layer ["Presentation Layer (app.py)"]
-        App["PhotoSearchApp"]
-        TR["ThumbnailRenderer"]
-        NEL["NativeExplorerLauncher"]
-        SSR["SystemStatusReporter"]
+    subgraph Interface_Layer ["Interface & Telemetry Layer"]
+        CLI["CLI: src/cli.py"]
+        GUI["Desktop App / Backend API"]
+        TR["ThumbnailRenderer (src/thumbnails.py)"]
+        NEL["NativeExplorerLauncher (src/os_utils.py)"]
+        SSR["SystemStatusReporter (src/status.py)"]
     end
 
     subgraph Memory_Layer ["Resource & Memory Management (src/gpu_manager.py)"]
@@ -68,10 +69,14 @@ graph TD
         CER["CrossEncoderReranker"]
     end
 
-    App --> SE
-    App --> OSE
-    App --> IDX
-    App --> OIDX
+    CLI --> SE
+    CLI --> OSE
+    CLI --> IDX
+    CLI --> OIDX
+    GUI --> SE
+    GUI --> OSE
+    GUI --> IDX
+    GUI --> OIDX
     SE --> MM
     IDX --> MM
     OSE --> MM
@@ -116,11 +121,21 @@ graph TD
   - `PhotoCacheManager` (`src/indexer.py`): Manages intermediate 4-stage caching in `./data/indexer_cache.db`.
 
 ### 3.6. Facade Pattern
-- High-level orchestrators (`SearchEngine`, `OCRSearchEngine`, `PhotoSearchApp`) provide simplified interfaces over complex sub-components (query preprocessing, vector retrieval, full-text filtering, RRF fusion, and cross-encoder reranking).
+- High-level orchestrators (`SearchEngine`, `OCRSearchEngine`, `src.cli`) provide simplified interfaces over complex sub-components (query preprocessing, vector retrieval, full-text filtering, RRF fusion, and cross-encoder reranking).
 
 ---
 
 ## 4. Module-by-Module Breakdown
+
+### `src/cli.py`
+- **Role**: Unified command-line interface entrypoint.
+- **Key Commands**:
+  - `index`: Runs visual photo indexing (`src.indexer`).
+  - `search`: Executes natural language semantic queries (`src.search`).
+  - `ocr-index`: Runs document OCR extraction and MiniLM embedding (`src.ocr_indexer`).
+  - `ocr-search`: Executes hybrid vector + full-text document search (`src.ocr_search`).
+  - `clear`: Purges Qdrant collections and SQLite caches.
+  - `status`: Displays GPU/CPU telemetry and collection counts (`src.status`).
 
 ### `src/config.py`
 - **Role**: Centralized configuration and hardware detection.
@@ -203,13 +218,41 @@ graph TD
   - `PhotoCrossEncoderReranker`: Formats context prompts (`Caption: ... | Text in image: ... | Date: ...`), executes cross-encoder reranking, and guarantees OpenCLIP rank #1 is preserved in the top 4.
   - `SearchEngine`: High-level visual search coordinator.
 
-### `app.py`
-- **Role**: Web user interface built with Gradio.
+### `src/status.py`
+- **Role**: Telemetry and system reporting.
 - **Key Classes**:
-  - `ThumbnailRenderer`: Generates thumbnails for image files and PDF document pages.
-  - `NativeExplorerLauncher`: Reveals files or opens containing directories in Windows Explorer, macOS Finder, or Linux file managers.
-  - `SystemStatusReporter`: Fetches real-time GPU VRAM, active models, and collection statistics.
-  - `PhotoSearchApp`: Main application controller building layout components, handling search/indexing callbacks, and binding UI events.
+  - `SystemStatusReporter`: Queries real-time hardware status, GPU VRAM, active resident models, and collection point counts.
+
+### `src/os_utils.py`
+- **Role**: Native operating system and file manager integration.
+- **Key Classes**:
+  - `NativeExplorerLauncher`: Cross-platform directory open and file selection (Windows Explorer, macOS Finder, Linux `xdg-open`).
+
+### `src/thumbnails.py`
+- **Role**: Document thumbnail generation.
+- **Key Classes**:
+  - `ThumbnailRenderer`: Generates preview thumbnails for images and multi-page PDF document pages using `pypdfium2` and Pillow.
+
+### `backend/` Package (Python API Backend)
+- **Role**: Local HTTP & WebSocket service bridging the desktop GUI to `./src`.
+- **Modules**:
+  - `server.py`: Launches Uvicorn programmatically bound exclusively to `127.0.0.1` on a dynamically assigned ephemeral port. Outputs the JSON ready handshake line: `{"event":"ready","port":NNNN}`.
+  - `api.py`: FastAPI routes implementing `/health` (startup progress), `/status` (VRAM and collection counts), `/folder/summary` (staged/stored counts), `/jobs/ocr`, `/jobs/ocr-caption`, `/jobs/store`, `/jobs/delete`, `/jobs/cancel`, `/ws/events`, and `/shutdown`.
+  - `jobs.py`: Single-job runner (`JobManager`) running jobs on a dedicated background worker thread with `threading.Event` cancellation checks between batches and guaranteed GPU cleanup.
+  - `events.py`: Thread-safe `EventBus` broadcasting job progress, stage changes, log messages, and VRAM status over WebSocket connections.
+  - `security.py`: Bearer token authentication via `EMBEDEYE_TOKEN`, foreign Origin header rejection, and strict folder path normalization.
+  - `staging.py`: SQLite-backed staging store (`./data/staging.db`) holding OCR text and captions before committing to Qdrant.
+
+### `gui/EmbedEye.Gui/` (Avalonia 11 Desktop GUI)
+- **Role**: Native Windows desktop user interface built with .NET 8 and Avalonia 11.
+- **MVVM Components**:
+  - `MainWindowViewModel`: Manages application state, folder validation, live summary counts, 4 action states, stage progress, VRAM telemetry, log collection, delete confirmation modal, and settings flyout.
+  - `JobObjectService`: Win32 native interop configuring a Windows Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, ensuring the Python backend process is terminated instantly when the GUI closes or exits.
+  - `BackendProcessManager`: Spawns the backend hidden with `pythonw.exe`, captures port from stdout, and monitors process health with automatic restart support.
+  - `SingleInstanceService`: Named Mutex and Named Pipe forwarding command-line folder arguments to the running primary window.
+  - `ContextMenuService`: HKCU Windows Explorer context menu registration (`--register-context-menu` and `--unregister-context-menu`).
+  - `ApiClient`: Async HTTP client with Bearer token authentication.
+  - `WebSocketClient`: Real-time streaming client with automatic reconnect.
 
 ---
 
@@ -221,15 +264,15 @@ graph TD
 sequenceDiagram
     autonumber
     actor User
-    participant App as PhotoSearchApp
+    participant Caller as CLI / Desktop Backend
     participant Indexer as OCRIndexer
     participant Cache as OCRCacheManager (SQLite)
     participant Worker as OCRWorker Pool
     participant Embedder as MiniLMEmbedder (CPU)
     participant Qdrant as QdrantClient ('docs_ocr')
 
-    User->>App: Click "Index OCR Folder"
-    App->>Indexer: index_folder(folder_path)
+    User->>Caller: Trigger OCR Indexing (folder)
+    Caller->>Indexer: index_folder(folder_path)
     Indexer->>Cache: get_cached_mtimes()
     Cache-->>Indexer: cached_records
     Indexer->>Indexer: Filter new/modified files vs unchanged
@@ -246,8 +289,8 @@ sequenceDiagram
     Embedder-->>Indexer: 384-d dense vectors
     Indexer->>Qdrant: Upsert PointStructs with payload & vectors
     Indexer->>Cache: record_files(status_rows)
-    Indexer-->>App: Return indexing summary
-    App-->>User: Display summary and update status card
+    Indexer-->>Caller: Return indexing summary
+    Caller-->>User: Display summary and update status
 ```
 
 ### 5.2. OCR Document Search Flow
@@ -256,7 +299,7 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor User
-    participant App as PhotoSearchApp
+    participant Caller as CLI / Desktop Backend
     participant Engine as OCRSearchEngine
     participant Embedder as MiniLMEmbedder (CPU)
     participant Qdrant as QdrantClient ('docs_ocr')
@@ -264,8 +307,8 @@ sequenceDiagram
     participant MM as ModelManager
     participant Agg as DocumentAggregator
 
-    User->>App: Submit query (e.g. '"Invoice" payment 2024')
-    App->>Engine: search(query, top_k=4)
+    User->>Caller: Submit query (e.g. '"Invoice" payment 2024')
+    Caller->>Engine: search(query, top_k=4)
     Engine->>Embedder: embed_query(query)
     Embedder-->>Engine: 384-d query vector
     par Parallel Retrieval
@@ -285,8 +328,8 @@ sequenceDiagram
     end
     Engine->>Agg: group_by_document(candidates, top_k=4)
     Agg-->>Engine: Top 4 documents with highlighted snippets
-    Engine-->>App: Return results
-    App-->>User: Render document thumbnails and snippets
+    Engine-->>Caller: Return results
+    Caller-->>User: Output document results and snippets
 ```
 
 ---
@@ -294,15 +337,15 @@ sequenceDiagram
 ## 6. Directory Structure Reference
 
 ```text
-e:/projects/AI image searcher/
-├── app.py                      # Main Gradio Web Application (OOP PhotoSearchApp)
-├── CODE_STRUCTURE.md           # System Architecture & OOP Documentation (This file)
+embedeye/
+├── CODE_STRUCTURE.md           # Architecture & OOP Documentation (This file)
 ├── README.md                   # Project overview and setup instructions
 ├── requirements.txt            # Python dependencies
 ├── .env                        # Local environment configuration
 │
 ├── src/                        # Core Source Code Modules
 │   ├── __init__.py
+│   ├── cli.py                  # Unified command-line interface
 │   ├── config.py               # Hardware detection & configuration parameters
 │   ├── gpu_manager.py          # ModelManager (Strict GPU memory isolation)
 │   ├── models.py               # Heavy neural model loaders & inference helpers
@@ -310,7 +353,10 @@ e:/projects/AI image searcher/
 │   ├── ocr_indexer.py          # Document chunking, multiprocessing, OCR indexing
 │   ├── ocr_search.py           # Hybrid vector/keyword retrieval, RRF, reranking
 │   ├── indexer.py              # 4-stage visual photo indexer
-│   └── search.py               # Visual search engine & offline temporal filtering
+│   ├── search.py               # Visual search engine & offline temporal filtering
+│   ├── status.py               # Hardware telemetry & collection status reporter
+│   ├── os_utils.py             # Cross-platform desktop explorer launcher
+│   └── thumbnails.py           # Image & PDF thumbnail generator
 │
 ├── models/                     # STRICT OFFLINE MODEL WEIGHTS CACHE
 │   ├── tesseract/              # Standalone Tesseract v5.5.3 binaries & tessdata
@@ -329,6 +375,7 @@ e:/projects/AI image searcher/
 │   └── ocr_indexer_cache.db    # OCR document checkpoint SQLite database
 │
 └── scripts/                    # VERIFICATION & TEST SCRIPTS
+    ├── download_models.py      # Pre-download weights into ./models/
     └── verify_ocr_mode.py      # 5-stage automated verification test suite
 ```
 
@@ -340,7 +387,7 @@ e:/projects/AI image searcher/
    - Create a new class subclassing `BaseOCREngine` in `src/ocr_engine.py`.
    - Implement the `extract_text(image: Image.Image, min_conf: float) -> str` method.
    - Register the engine in `OCREngineFactory.create_engine()`.
-   - Add the engine name to the CLI choices in `src/ocr_indexer.py` and the dropdown in `app.py`.
+   - Add the engine name to the CLI choices in `src/cli.py` and `src/ocr_indexer.py`.
 
 2. **Adding a New Visual Embedding Model**:
    - Implement the loader and unloader in `src/models.py`.

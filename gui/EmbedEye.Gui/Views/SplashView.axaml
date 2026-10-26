@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:EmbedEye.Gui.ViewModels"
+             x:Class="EmbedEye.Gui.Views.SplashView"
+             x:DataType="vm:MainWindowViewModel">
+
+    <Grid Background="#121316">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24" Width="400">
+            <!-- App Logo & Pulsing Ring -->
+            <Grid Width="96" Height="96" HorizontalAlignment="Center">
+                <Ellipse Classes="Pulsing"
+                         Width="90" Height="90"
+                         Stroke="{DynamicResource AccentBrush}"
+                         StrokeThickness="2"
+                         Opacity="0.6">
+                    <Ellipse.RenderTransform>
+                        <ScaleTransform />
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+
+                <!-- Eye Symbol Icon -->
+                <Path Data="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+                      Fill="{DynamicResource AccentBrush}"
+                      Width="48" Height="48"
+                      Stretch="Uniform"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center" />
+            </Grid>
+
+            <!-- Title & Subtitle -->
+            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                <TextBlock Text="EmbedEye"
+                           FontSize="28"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="Local AI Photo &amp; Document Indexing"
+                           FontSize="13"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Startup Step Status & Progress Bar -->
+            <StackPanel Spacing="10" Margin="0,12,0,0">
+                <ProgressBar Value="{Binding SplashProgress}"
+                             Minimum="0" Maximum="100"
+                             Height="4"
+                             Foreground="{DynamicResource AccentBrush}"
+                             Background="#2A2E35"
+                             CornerRadius="2" />
+
+                <TextBlock Text="{Binding SplashStatusText}"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>
